@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>MindfulTrack - Habit & Impulse Tracker</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'media',
+            theme: {
+                extend: {
+                    colors: {
+                        ios: {
+                            bg: '#F2F2F7',
+                            card: '#FFFFFF',
+                            text: '#1C1C1E',
+                            subtext: '#8E8E93',
+                            blue: '#007AFF',
+                            green: '#34C759',
+                            red: '#FF3B30',
+                            orange: '#FF9500',
+                            purple: '#AF52DE',
+                            teal: '#5AC8FA',
+                            separator: '#C6C6C8'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['-apple-system', 'BlinkMacSystemFont', "Segoe UI", 'Roboto', 'Helvetica', 'Arial', sans-serif]
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Smooth scrolling & iOS look */
+        body {
+            background-color: #F2F2F7;
+            color: #1C1C1E;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+        .ios-card {
+            background: #FFFFFF;
+            border-radius: 20px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        /* Custom scrollbars */
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #C6C6C8;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen max-w-md mx-auto relative antialiased pb-24">
+
+    <!-- Top Header -->
+    <header class="sticky top-0 z-30 bg-[#F2F2F7]/90 backdrop-blur-md px-5 pt-4 pb-3 flex justify-between items-center border-b border-gray-200/50">
+        <div>
+            <h1 id="current-view-title" class="text-2xl font-bold tracking-tight text-gray-900">Log Habit</h1>
+            <p id="current-date-sub" class="text-xs text-gray-500 font-medium"></p>
+        </div>
+        <div class="flex items-center gap-2">
+            <button onclick="exportData()" class="w-9 h-9 rounded-full bg-white shadow-sm border border-gray-200 flex items-center justify-center text-gray-700 active:scale-95 transition">
+                <i class="fa-solid fa-download text-sm"></i>
+            </button>
+            <button onclick="resetDataModal()" class="w-9 h-9 rounded-full bg-white shadow-sm border border-gray-200 flex items-center justify-center text-red-500 active:scale-95 transition">
+                <i class="fa-solid fa-trash-can text-sm"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Container Views -->
+    <main class="flex-1 px-4 py-4 overflow-y-auto">
+
+        <!-- VIEW 1: LOG HABIT -->
+        <section id="view-log" class="tab-content active space-y-4">
+            <!-- Habit Selector Grid -->
+            <div class="mb-2">
+                <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 px-1">Select Habit to Log</label>
+                <div class="grid grid-cols-2 gap-3" id="habit-grid">
+                    <!-- Populated via JS -->
+                </div>
+            </div>
+
+            <!-- Active Log Form Card (Hidden until habit selected) -->
+            <div id="log-form-card" class="ios-card p-5 space-y-4 hidden border border-gray-100">
+                <div class="flex items-center justify-between border-b border-gray-100 pb-3">
+                    <div class="flex items-center gap-3">
+                        <div id="form-habit-icon" class="w-10 h-10 rounded-full flex items-center justify-center text-white text-lg"></div>
+                        <div>
+                            <h3 id="form-habit-name" class="font-bold text-gray-900">Habit Name</h3>
+                            <p id="form-habit-category" class="text-xs text-gray-400">Type</p>
+                        </div>
+                    </div>
+                    <button onclick="closeLogForm()" class="text-gray-400 hover:text-gray-600 p-1">
+                        <i class="fa-solid fa-xmark text-lg"></i>
+                    </button>
+                </div>
+
+                <!-- Value Input (Minutes / Calories) -->
+                <div>
+                    <label id="form-value-label" class="block text-sm font-medium text-gray-700 mb-1">Duration (Minutes)</label>
+                    <div class="relative">
+                        <input type="number" id="form-value-input" inputmode="numeric" placeholder="e.g., 30" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-lg font-semibold text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <span id="form-value-unit" class="absolute right-4 top-3.5 text-sm font-medium text-gray-400">min</span>
+                    </div>
+                </div>
+
+                <!-- Necessity Toggle -->
+                <div class="space-y-2">
+                    <label class="block text-sm font-medium text-gray-700">Did you genuinely want or need this?</label>
+                    <div class="grid grid-cols-2 gap-3">
+                        <button type="button" onclick="setNecessity(true)" id="btn-nec-yes" class="py-3 px-4 rounded-xl border border-gray-200 font-medium text-sm flex items-center justify-center gap-2 transition bg-gray-50 text-gray-700">
+                            <i class="fa-solid fa-circle-check text-green-500"></i> Yes / Needed
+                        </button>
+                        <button type="button" onclick="setNecessity(false)" id="btn-nec-no" class="py-3 px-4 rounded-xl border border-gray-200 font-medium text-sm flex items-center justify-center gap-2 transition bg-gray-50 text-gray-700">
+                            <i class="fa-solid fa-circle-xmark text-red-500"></i> No / Impulse
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Optional Note -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Optional Note / Trigger</label>
+                    <input type="text" id="form-note-input" placeholder="e.g., Boredom while working, stress..." class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+
+                <!-- Submit Button -->
+                <button onclick="submitHabitLog()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3.5 rounded-xl shadow-lg shadow-blue-500/25 active:scale-[0.98] transition">
+                    Save Entry
+                </button>
+            </div>
+
+            <!-- Today's Quick Log History -->
+            <div class="mt-6">
+                <div class="flex justify-between items-center mb-3 px-1">
+                    <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Today's Logs</h3>
+                    <span id="today-count-badge" class="text-xs bg-gray-200 text-gray-700 px-2 py-0.5 rounded-full font-medium">0 entries</span>
+                </div>
+                <div id="today-logs-list" class="space-y-2">
+                    <!-- Populated via JS -->
+                </div>
+            </div>
+        </section>
+
+        <!-- VIEW 2: TABLE & HISTORY -->
+        <section id="view-table" class="tab-content space-y-4">
+            <div class="flex justify-between items-center bg-white p-3 rounded-2xl shadow-sm border border-gray-100">
+                <span class="text-sm font-medium text-gray-700">Aggregate View</span>
+                <div class="flex items-center gap-2">
+                    <select id="table-filter-habit" onchange="renderTable()" class="bg-gray-50 border border-gray-200 text-xs font-medium rounded-lg px-2.5 py-1.5 text-gray-700 focus:outline-none">
+                        <option value="all">All Habits</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Aggregated Table Card -->
+            <div class="ios-card overflow-hidden border border-gray-100">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-gray-50 text-[11px] font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-200">
+                                <th class="py-3 px-3">Date</th>
+                                <th class="py-3 px-3">Habit</th>
+                                <th class="py-3 px-3 text-center">Count</th>
+                                <th class="py-3 px-3 text-right">Total</th>
+                                <th class="py-3 px-3 text-right">Needed %</th>
+                            </tr>
+                        </thead>
+                        <tbody id="aggregated-table-body" class="divide-y divide-gray-100 text-sm">
+                            <!-- Populated via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- VIEW 3: ANALYTICS & INSIGHTS -->
+        <section id="view-analytics" class="tab-content space-y-4">
+            <!-- Summary Stats Cards -->
+            <div class="grid grid-cols-2 gap-3">
+                <div class="ios-card p-4 border border-gray-100">
+                    <span class="text-xs font-medium text-gray-400 uppercase tracking-wider">Total Logs (7d)</span>
+                    <h2 id="stat-total-logs" class="text-2xl font-bold text-gray-900 mt-1">0</h2>
+                </div>
+                <div class="ios-card p-4 border border-gray-100">
+                    <span class="text-xs font-medium text-gray-400 uppercase tracking-wider">Avg Necessity</span>
+                    <h2 id="stat-avg-necessity" class="text-2xl font-bold text-gray-900 mt-1">0%</h2>
+                </div>
+            </div>
+
+            <!-- Best Practices & Mindful Insights Card -->
+            <div class="ios-card p-5 border border-gray-100 space-y-3 bg-gradient-to-br from-blue-50 to-indigo-50/50">
+                <div class="flex items-center gap-2 text-blue-600 font-semibold text-sm">
+                    <i class="fa-solid fa-lightbulb"></i>
+                    <h4>Mindful Insights & Tips</h4>
+                </div>
+                <p id="insight-text" class="text-xs text-gray-600 leading-relaxed">
+                    Track your daily impulses to discover patterns. Negative habits often peak when feeling bored, stressed, or tired. Notice your necessity percentage!
+                </p>
+            </div>
+
+            <!-- Breakdown per Habit -->
+            <div class="space-y-3">
+                <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider px-1">Habit Breakdown (Last 7 Days)</h3>
+                <div id="analytics-habit-list" class="space-y-3">
+                    <!-- Populated via JS -->
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- MINDFUL PAUSE MODAL (Friction Prompt) -->
+    <div id="mindful-modal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+        <div class="bg-white w-full max-w-xs rounded-3xl p-6 text-center space-y-4 shadow-2xl animate-in fade-in zoom-in duration-200">
+            <div class="w-14 h-14 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto text-2xl">
+                <i class="fa-solid fa-spa"></i>
+            </div>
+            <div>
+                <h3 class="text-lg font-bold text-gray-900">Take a Mindful Breath</h3>
+                <p class="text-xs text-gray-500 mt-1 leading-relaxed">Are you sure you want to indulge in this right now, or is it an automatic impulse?</p>
+            </div>
+            <div class="space-y-2 pt-2">
+                <button onclick="confirmMindfulProceed()" class="w-full bg-gray-900 text-white font-medium py-3 rounded-xl text-sm active:scale-95 transition">
+                    Proceed & Log
+                </button>
+                <button onclick="closeMindfulModal()" class="w-full bg-gray-100 text-gray-700 font-medium py-3 rounded-xl text-sm active:scale-95 transition">
+                    Cancel (Save me from myself!)
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- RESET CONFIRMATION MODAL -->
+    <div id="reset-modal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+        <div class="bg-white w-full max-w-xs rounded-3xl p-6 text-center space-y-4 shadow-2xl">
+            <div class="w-14 h-14 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto text-2xl">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <div>
+                <h3 class="text-lg font-bold text-gray-900">Reset All Data?</h3>
+                <p class="text-xs text-gray-500 mt-1">This will permanently delete all your tracked logs from local storage.</p>
+            </div>
+            <div class="space-y-2 pt-2">
+                <button onclick="executeResetData()" class="w-full bg-red-600 text-white font-medium py-3 rounded-xl text-sm active:scale-95 transition">
+                    Delete Everything
+                </button>
+                <button onclick="closeResetModal()" class="w-full bg-gray-100 text-gray-700 font-medium py-3 rounded-xl text-sm active:scale-95 transition">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-20 left-1/2 -translate-x-1/2 bg-gray-900/90 text-white text-xs px-4 py-2.5 rounded-full shadow-lg backdrop-blur-md transition-all duration-300 opacity-0 pointer-events-none z-50 flex items-center gap-2">
+        <i class="fa-solid fa-circle-check text-green-400"></i>
+        <span id="toast-msg">Success</span>
+    </div>
+
+    <!-- Bottom Navigation Bar (iOS Tab Bar Style) -->
+    <nav class="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white/90 backdrop-blur-xl border-t border-gray-200/80 px-4 py-2 flex justify-around items-center z-40">
+        <button onclick="switchTab('log')" id="nav-log" class="flex flex-col items-center gap-1 text-blue-600 transition flex-1 py-1">
+            <i class="fa-solid fa-circle-plus text-xl"></i>
+            <span class="text-[10px] font-semibold">Log</span>
+        </button>
+        <button onclick="switchTab('table')" id="nav-table" class="flex flex-col items-center gap-1 text-gray-400 hover:text-gray-600 transition flex-1 py-1">
+            <i class="fa-solid fa-table-list text-xl"></i>
+            <span class="text-[10px] font-medium">History</span>
+        </button>
+        <button onclick="switchTab('analytics')" id="nav-analytics" class="flex flex-col items-center gap-1 text-gray-400 hover:text-gray-600 transition flex-1 py-1">
+            <i class="fa-solid fa-chart-pie text-xl"></i>
+            <span class="text-[10px] font-medium">Analytics</span>
+        </button>
+    </nav>
+
+    <!-- JavaScript Application Logic -->
+    <script>
+        // Habit Definitions
+        const HABITS = [
+            {
+                id: 'phone',
+                name: 'Phone Addiction',
+                category: 'Screen Time',
+                type: 'duration',
+                unit: 'min',
+                color: 'bg-blue-500',
+                textColor: 'text-blue-500',
+                lightBg: 'bg-blue-50',
+                icon: 'fa-mobile-screen-button',
+                mindfulFriction: true
+            },
+            {
+                id: 'p_addiction',
+                name: 'P Addiction',
+                category: 'Impulse',
+                type: 'duration',
+                unit: 'min',
+                color: 'bg-purple-500',
+                textColor: 'text-purple-500',
+                lightBg: 'bg-purple-50',
+                icon: 'fa-shield-halved',
+                mindfulFriction: true
+            },
+            {
+                id: 'water',
+                name: 'Water Drinking',
+                category: 'Health',
+                type: 'amount',
+                unit: 'ml',
+                color: 'bg-teal-500',
+                textColor: 'text-teal-500',
+                lightBg: 'bg-teal-50',
+                icon: 'fa-glass-water',
+                mindfulFriction: false
+            },
+            {
+                id: 'exercise',
+                name: 'Exercising',
+                category: 'Health',
+                type: 'duration',
+                unit: 'min',
+                color: 'bg-green-500',
+                textColor: 'text-green-500',
+                lightBg: 'bg-green-50',
+                icon: 'fa-dumbbell',
+                mindfulFriction: false
+            },
+            {
+                id: 'calories',
+                name: 'Useless Calories',
+                category: 'Nutrition',
+                type: 'calories',
+                unit: 'kcal',
+                color: 'bg-orange-500',
+                textColor: 'text-orange-500',
+                lightBg: 'bg-orange-50',
+                icon: 'fa-burger',
+                mindfulFriction: true
+            }
+        ];
+
+        // App State
+        let logs = JSON.parse(localStorage.getItem('mindful_track_logs') || '[]');
+        let currentSelectedHabit = null;
+        let currentNecessity = true; // default true
+        let pendingHabitLog = null; // for mindful pause
+
+        // Initialize on load
+        window.addEventListener('DOMContentLoaded', () => {
+            updateDateHeader();
+            renderHabitGrid();
+            renderTodayLogs();
+            populateTableFilter();
+            renderTable();
+            renderAnalytics();
+        });
+
+        function updateDateHeader() {
+            const options = { weekday: 'short', month: 'short', day: 'numeric' };
+            document.getElementById('current-date-sub').innerText = new Date().toLocaleDateString('en-US', options);
+        }
+
+        // Tab Navigation Switcher
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('nav button').forEach(el => {
+                el.classList.remove('text-blue-600');
+                el.classList.add('text-gray-400');
+                const span = el.querySelector('span');
+                if(span) span.classList.replace('font-semibold', 'font-medium');
+            });
+
+            document.getElementById(`view-${tabName}`).classList.add('active');
+            const activeBtn = document.getElementById(`nav-${tabName}`);
+            activeBtn.classList.remove('text-gray-400');
+            activeBtn.classList.add('text-blue-600');
+            const activeSpan = activeBtn.querySelector('span');
+            if(activeSpan) activeSpan.classList.replace('font-medium', 'font-semibold');
+
+            const titleMap = {
+                'log': 'Log Habit',
+                'table': 'History & Table',
+                'analytics': 'Analytics & Insights'
+            };
+            document.getElementById('current-view-title').innerText = titleMap[tabName];
+
+            if(tabName === 'table') renderTable();
+            if(tabName === 'analytics') renderAnalytics();
+        }
+
+        // Render Habit Grid for Quick Logging
+        function renderHabitGrid() {
+            const grid = document.getElementById('habit-grid');
+            grid.innerHTML = HABITS.map(h => `
+                <button onclick="selectHabit('${h.id}')" class="ios-card p-4 text-left border border-gray-100 hover:border-gray-200 active:scale-[0.98] transition flex flex-col justify-between h-28 group">
+                    <div class="flex justify-between items-start">
+                        <div class="w-10 h-10 rounded-xl ${h.lightBg} ${h.textColor} flex items-center justify-center text-lg">
+                            <i class="fa-solid ${h.icon}"></i>
+                        </div>
+                        <span class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider bg-gray-100 px-2 py-0.5 rounded-md">${h.category}</span>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-gray-900 text-sm group-hover:text-blue-600 transition">${h.name}</h4>
+                        <span class="text-xs text-gray-400 capitalize">Tap to log</span>
+                    </div>
+                </button>
+            `).join('');
+        }
+
+        // Select Habit Form Handler
+        function selectHabit(habitId) {
+            const habit = HABITS.find(h => h.id === habitId);
+            if (!habit) return;
+            currentSelectedHabit = habit;
+
+            document.getElementById('form-habit-name').innerText = habit.name;
+            document.getElementById('form-habit-category').innerText = habit.category;
+            
+            const iconContainer = document.getElementById('form-habit-icon');
+            iconContainer.className = `w-10 h-10 rounded-full flex items-center justify-center text-white text-lg ${habit.color}`;
+            iconContainer.innerHTML = `<i class="fa-solid ${habit.icon}"></i>`;
+
+            const unitLabels = {
+                'duration': 'Duration (Minutes)',
+                'calories': 'Calories (kcal)',
+                'amount': 'Amount (ml / count)'
+            };
+            document.getElementById('form-value-label').innerText = unitLabels[habit.type] || 'Value';
+            document.getElementById('form-value-unit').innerText = habit.unit;
+            document.getElementById('form-value-input').value = habit.type === 'amount' ? '250' : (habit.type === 'calories' ? '200' : '15');
+
+            // Default necessity: For healthy habits (water, exercise) default to true. For impulses, default to false.
+            setNecessity(habit.id === 'water' || habit.id === 'exercise');
+            document.getElementById('form-note-input').value = '';
+
+            const card = document.getElementById('log-form-card');
+            card.classList.remove('hidden');
+            card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        function closeLogForm() {
+            document.getElementById('log-form-card').classList.add('hidden');
+            currentSelectedHabit = null;
+        }
+
+        function setNecessity(val) {
+            currentNecessity = val;
+            const btnYes = document.getElementById('btn-nec-yes');
+            const btnNo = document.getElementById('btn-nec-no');
+            if (val) {
+                btnYes.className = "py-3 px-4 rounded-xl border border-green-500 font-medium text-sm flex items-center justify-center gap-2 transition bg-green-50 text-green-700 shadow-sm";
+                btnNo.className = "py-3 px-4 rounded-xl border border-gray-200 font-medium text-sm flex items-center justify-center gap-2 transition bg-gray-50 text-gray-700";
+            } else {
+                btnYes.className = "py-3 px-4 rounded-xl border border-gray-200 font-medium text-sm flex items-center justify-center gap-2 transition bg-gray-50 text-gray-700";
+                btnNo.className = "py-3 px-4 rounded-xl border border-red-500 font-medium text-sm flex items-center justify-center gap-2 transition bg-red-50 text-red-700 shadow-sm";
+            }
+        }
+
+        // Submit Log with Mindful Friction Check
+        function submitHabitLog() {
+            if (!currentSelectedHabit) return;
+            const valInput = document.getElementById('form-value-input').value;
+            const value = parseFloat(valInput);
+            if (isNaN(value) || value <= 0) {
+                showToast('Please enter a valid amount or duration');
+                return;
+            }
+
+            const logData = {
+                id: Date.now().toString(),
+                habitId: currentSelectedHabit.id,
+                habitName: currentSelectedHabit.name,
+                unit: currentSelectedHabit.unit,
+                value: value,
+                necessary: currentNecessity,
+                note: document.getElementById('form-note-input').value.trim(),
+                timestamp: new Date().toISOString()
+            };
+
+            // Check if mindful friction is required (negative habits)
+            if (currentSelectedHabit.mindfulFriction && !currentNecessity) {
+                pendingHabitLog = logData;
+                document.getElementById('mindful-modal').classList.remove('hidden');
+                return;
+            }
+
+            saveAndCompleteLog(logData);
+        }
+
+        function confirmMindfulProceed() {
+            document.getElementById('mindful-modal').classList.add('hidden');
+            if (pendingHabitLog) {
+                saveAndCompleteLog(pendingHabitLog);
+                pendingHabitLog = null;
+            }
+        }
+
+        function closeMindfulModal() {
+            document.getElementById('mindful-modal').classList.add('hidden');
+            pendingHabitLog = null;
+            showToast('Mindful pause respected. Entry cancelled.');
+        }
+
+        function saveAndCompleteLog(logData) {
+            logs.unshift(logData);
+            localStorage.setItem('mindful_track_logs', JSON.stringify(logs));
+            closeLogForm();
+            renderTodayLogs();
+            renderTable();
+            renderAnalytics();
+            showToast(`Logged ${logData.habitName} successfully!`);
+        }
+
+        // Render Today's Logs
+        function renderTodayLogs() {
+            const listEl = document.getElementById('today-logs-list');
+            const todayStr = new Date().toDateString();
+            const todayLogs = logs.filter(l => new Date(l.timestamp).toDateString() === todayStr);
+
+            document.getElementById('today-count-badge').innerText = `${todayLogs.length} entries`;
+
+            if (todayLogs.length === 0) {
+                listEl.innerHTML = `
+                    <div class="ios-card p-6 text-center text-gray-400 border border-gray-100">
+                        <i class="fa-solid fa-clipboard-list text-2xl mb-1 text-gray-300"></i>
+                        <p class="text-xs">No habits logged yet today.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            listEl.innerHTML = todayLogs.map(l => {
+                const habitDef = HABITS.find(h => h.id === l.habitId) || { color: 'bg-gray-500', icon: 'fa-circle' };
+                const timeStr = new Date(l.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                return `
+                    <div class="ios-card p-3.5 flex items-center justify-between border border-gray-100">
+                        <div class="flex items-center gap-3">
+                            <div class="w-9 h-9 rounded-full ${habitDef.color} text-white flex items-center justify-center text-sm shadow-sm">
+                                <i class="fa-solid ${habitDef.icon}"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-semibold text-gray-900 text-sm">${l.habitName}</h4>
+                                <p class="text-[11px] text-gray-400 flex items-center gap-2">
+                                    <span>${timeStr}</span>
+                                    ${l.note ? `<span>• ${l.note}</span>` : ''}
+                                </p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <div class="text-right">
+                                <span class="font-bold text-gray-900 text-sm">${l.value} <span class="text-xs font-normal text-gray-500">${l.unit}</span></span>
+                                <div>
+                                    <span class="text-[10px] px-2 py-0.5 rounded-full font-medium ${l.necessary ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">
+                                        ${l.necessary ? 'Needed' : 'Impulse'}
+                                    </span>
+                                </div>
+                            </div>
+                            <button onclick="deleteLog('${l.id}')" class="text-gray-300 hover:text-red-500 p-1 transition">
+                                <i class="fa-solid fa-trash-can text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function deleteLog(id) {
+            logs = logs.filter(l => l.id !== id);
+            localStorage.setItem('mindful_track_logs', JSON.stringify(logs));
+            renderTodayLogs();
+            renderTable();
+            renderAnalytics();
+            showToast('Log entry deleted');
+        }
+
+        // Populate Table Habit Filter
+        function populateTableFilter() {
+            const select = document.getElementById('table-filter-habit');
+            select.innerHTML = `<option value="all">All Habits</option>` + HABITS.map(h => `<option value="${h.id}">${h.name}</option>`).join('');
+        }
+
+        // Render Aggregated Table (Date, Habit, Count, Total Duration/Calories, Necessity %)
+        function renderTable() {
+            const tbody = document.getElementById('aggregated-table-body');
+            const filterHabit = document.getElementById('table-filter-habit').value;
+
+            // Group logs by Date (YYYY-MM-DD) and HabitId
+            const aggregated = {};
+
+            logs.forEach(l => {
+                if (filterHabit !== 'all' && l.habitId !== filterHabit) return;
+                const dateKey = new Date(l.timestamp).toISOString().split('T')[0];
+                const key = `${dateKey}_${l.habitId}`;
+
+                if (!aggregated[key]) {
+                    aggregated[key] = {
+                        date: dateKey,
+                        habitId: l.habitId,
+                        habitName: l.habitName,
+                        unit: l.unit,
+                        count: 0,
+                        totalValue: 0,
+                        necessaryCount: 0
+                    };
+                }
+                aggregated[key].count += 1;
+                aggregated[key].totalValue += Number(l.value);
+                if (l.necessary) aggregated[key].necessaryCount += 1;
+            });
+
+            const sortedKeys = Object.keys(aggregated).sort().reverse();
+
+            if (sortedKeys.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="py-8 text-center text-gray-400 text-xs">
+                            No aggregated data available for the selected filter.
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = sortedKeys.map(k => {
+                const item = aggregated[k];
+                const formattedDate = new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                const necessityPct = Math.round((item.necessaryCount / item.count) * 100);
+
+                return `
+                    <tr class="hover:bg-gray-50/80 transition">
+                        <td class="py-3 px-3 text-xs font-medium text-gray-700 whitespace-nowrap">${formattedDate}</td>
+                        <td class="py-3 px-3 text-xs font-semibold text-gray-900">${item.habitName}</td>
+                        <td class="py-3 px-3 text-xs text-center font-medium text-gray-700">${item.count}</td>
+                        <td class="py-3 px-3 text-xs text-right font-bold text-gray-900">${item.totalValue} <span class="font-normal text-gray-500">${item.unit}</span></td>
+                        <td class="py-3 px-3 text-xs text-right">
+                            <span class="px-2 py-0.5 rounded-full font-semibold ${necessityPct >= 50 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">
+                                ${necessityPct}%
+                            </span>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // Render Analytics & Insights
+        function renderAnalytics() {
+            // Stats over last 7 days
+            const sevenDaysAgo = new Date();
+            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+            const recentLogs = logs.filter(l => new Date(l.timestamp) >= sevenDaysAgo);
+
+            document.getElementById('stat-total-logs').innerText = recentLogs.length;
+
+            const totalNeeded = recentLogs.filter(l => l.necessary).length;
+            const avgNec = recentLogs.length > 0 ? Math.round((totalNeeded / recentLogs.length) * 100) : 0;
+            document.getElementById('stat-avg-necessity').innerText = `${avgNec}%`;
+
+            // Dynamic Insight text
+            const insightEl = document.getElementById('insight-text');
+            if (recentLogs.length === 0) {
+                insightEl.innerText = "Start logging your habits daily to receive customized behavioral insights and pattern analysis.";
+            } else if (avgNec < 40) {
+                insightEl.innerText = "Notice: Over 60% of your recent tracked habits were driven by impulses rather than genuine needs. Try introducing our mindful pause before negative habits!";
+            } else {
+                insightEl.innerText = "Great self-awareness! You have a high conscious necessity percentage in your logged activities over the past week.";
+            }
+
+            // Habit breakdown list
+            const habitListEl = document.getElementById('analytics-habit-list');
+            habitListEl.innerHTML = HABITS.map(h => {
+                const habitLogs = recentLogs.filter(l => l.habitId === h.id);
+                const count = habitLogs.length;
+                const totalVal = habitLogs.reduce((acc, curr) => acc + Number(curr.value), 0);
+                const necCount = habitLogs.filter(l => l.necessary).length;
+                const pct = count > 0 ? Math.round((necCount / count) * 100) : 0;
+
+                return `
+                    <div class="ios-card p-4 border border-gray-100 space-y-2">
+                        <div class="flex justify-between items-center">
+                            <div class="flex items-center gap-2.5">
+                                <div class="w-8 h-8 rounded-lg ${h.lightBg} ${h.textColor} flex items-center justify-center text-sm">
+                                    <i class="fa-solid ${h.icon}"></i>
+                                </div>
+                                <span class="font-bold text-gray-900 text-sm">${h.name}</span>
+                            </div>
+                            <span class="text-xs font-semibold text-gray-500">${count} logs</span>
+                        </div>
+                        <div class="flex justify-between items-center text-xs text-gray-500 pt-1 border-t border-gray-100">
+                            <span>Total: <strong class="text-gray-900">${totalVal} ${h.unit}</strong></span>
+                            <span>Needed/Wanted: <strong class="${pct >= 50 ? 'text-green-600' : 'text-red-600'}">${pct}%</strong></span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Data Export (JSON file)
+        function exportData() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(logs, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `mindful_track_data_${new Date().toISOString().split('T')[0]}.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+            showToast('Data exported successfully');
+        }
+
+        // Reset Data Modals
+        function resetDataModal() {
+            document.getElementById('reset-modal').classList.remove('hidden');
+        }
+
+        function closeResetModal() {
+            document.getElementById('reset-modal').classList.add('hidden');
+        }
+
+        function executeResetData() {
+            logs = [];
+            localStorage.removeItem('mindful_track_logs');
+            closeResetModal();
+            renderTodayLogs();
+            renderTable();
+            renderAnalytics();
+            showToast('All data has been cleared');
+        }
+
+        // Toast Notification helper
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-msg').innerText = msg;
+            toast.classList.remove('opacity-0', 'pointer-events-none');
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'pointer-events-none');
+            }, 2500);
+        }
+    </script>
+</body>
+</html>
